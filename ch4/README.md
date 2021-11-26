@@ -127,18 +127,99 @@ if (req.method === "GET") {
 <br />
 
 ```js
-  req.on("data", (data) => {
-    body += data;
-  });
+  if (req.method === "PUT") {
+    if (req.url.startsWith("/user/")) {
+      const key = req.url.split("/")[2];
+      let body = "";
 
-  return req.on("end", () => {
-    console.log("PUT본문(BODY)", body);
-    users[key] = JSON.parse(body).name;
-    return res.end(JSON.stringify(users));
-  });
+      req.on("data", (data) => {
+        body += data;
+      });
+
+      return req.on("end", () => {
+        console.log("PUT본문(BODY)", body);
+        users[key] = JSON.parse(body).name;
+        return res.end(JSON.stringify(users));
+      });
+    }
+  }
 ```
 - POST요청과 PUT 요청을 할 때 `req.on('data')`와 `req.on('end')`을 사용한다. 요청의 본문에 들어 있는 데이터를 꺼내기 위한 작업이다.
-- req와 res도 내부적으로 스트림(각각 readStream과 writeStream)으로 되어 있으므로 요청/응답의 데이터가 스트림 형식으로 전달된다. 또한 on에 이벤트도 달려있다. 
+- req와 res도 내부적으로 스트림(각각 `readStream`과 `writeStream`)으로 되어 있으므로 요청/응답의 데이터가 스트림 형식으로 전달된다. 또한 on에 이벤트도 달려있다. 
 - 이때 데이터는 문자열이므로 JSON으로 만드는 JSON.parse 과정이 필요하다. 참고로 JSON.stringify는 JSON 파일을 문자열로 변환한다.
+- `startWith()` 문자열 메서드는 어떤 문자열이 특정 문자로 시작하는지 확인하여 결과는 true 또는 false로 반환해주는 메서드이다.
+
+<br />
+
+### 🏃‍♂️ 예제6 (Cookie)
+```js
+  const http = require("http");
+  const url = require("url");
+  const fs = require("fs").promises;
+  const qs = require("querystring");
+
+  http
+  .createServer(async (req, res) => {
+    const cookies = parseCookies(req.headers.cookie);
+    // 주소가 /login으로 시작하는 경우
+    if (req.url.startsWith("/login")) {
+      const { query } = url.parse(req.url);
+      const { name } = qs.parse(query);
+      const expires = new Date();
+
+      expires.setMinutes(expires.getMinutes() + 5);
+
+      res.writeHead(302, {
+        Location: "/",
+        "Set-Cookie": `name=${encodeURIComponent(
+          name
+        )};Expires=${expires.toUTCString()};HttpOnly;Path=/`,
+      });
+      res.end();
+    }
+  // ...
+```
+- 쿠키는 요청의 헤더에 담겨 전송된다. 따라서 req.headers.cookie에 존재한다. req.headers는 요청의 헤더를 의미한다.
+- url과 querystring 모듈로 각각 주소와 주소에 딸라오는 query를 분석한다. 그리고 만료시간(expires)을 설정한다.
+- res.writeHead를 통해서 302 응답코드, 리다이렉트 주소와 함께 쿠키를 헤더에 넣는다.
+- 이때, 헤더에는 한글을 설정할 수 없으므로 name 변수를 encodeURIComponent 메서드로 인코딩한다. decodeURIComponent를 통해 encodeURIComponent 나 비슷한 방법으로 생성된 Uniform Resource Identifier(URI) 컴포넌트를 해독할 수 있다.
+- Set-Cookie의 값으로는 제한된 ASCII 코드만 들어가야 하므로 줄바꿈을 넣으면 안된다.
+
+<br />
+
+
+### 🏃‍♂️ 예제7 (Session)
+```js
+  const session = {};
+
+  http
+  .createServer(async (req, res) => {
+    const cookies = parseCookies(req.headers.cookie);
+    // 주소가 /login으로 시작하는 경우
+    if (req.url.startsWith("/login")) {
+      const { query } = url.parse(req.url);
+      const { name } = qs.parse(query);
+      const expires = new Date();
+
+      expires.setMinutes(expires.getMinutes() + 5);
+      const uniqueInt = Date.now();
+
+      session[uniqueInt] = {
+        name,
+        expires,
+      };
+
+      res.writeHead(302, {
+        Location: "/",
+        "Set-Cookie": `session=${uniqueInt};Expires=${expires.toUTCString()};HttpOnly;Path=/`,
+      });
+      res.end();
+    } 
+  //...
+```
+- cookie 예제와 다르게 쿠키에 이름을 담아서 보내는 대신 uniqueInt 라는 숫자 값을 보냇다.
+- 사용자의 이름과 만료 시간은 uniqueInt 속성명 아래에 있는 session이라는 객체에 대신 저장한다.
+- 이제 cookie.session이 있고 만료 기한을 넘기지 않았다면 session 변수에서 사용자 정보를 가져와 사용한다. 다른부분은 동일하다.
+- toUTCString() 메서드는  UTC 표준 시간대를 사용하여 날짜를 문자열로 변환합니다. 예) `Wed, 14 Jun 2017 07:00:00 GMT`
 
 <br />
