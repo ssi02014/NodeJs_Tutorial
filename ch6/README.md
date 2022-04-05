@@ -1,22 +1,24 @@
 # 💻 Ch6
-## 📄 6강 정리
-### 🏃‍♂️ Express Start
+
+## 📄 Express Start
+
 ```js
-  const express = require("express");
-  const path = require("path");
+const express = require("express");
+const path = require("path");
 
-  const app = express();
-  app.set("port", process.env.PORT || 8000);
+const app = express();
+app.set("port", process.env.PORT || 8000);
 
-  app.get("/", (req, res) => {
-    // res.send("Hello Express");
-    res.sendFile(path.join(__dirname, "/index.html"));
-  });
+app.get("/", (req, res) => {
+  // res.send("Hello Express");
+  res.sendFile(path.join(__dirname, "/index.html"));
+});
 
-  app.listen(app.get("port"), () => {
-    console.log(app.get("port"), "번에서 대기중");
-  });
+app.listen(app.get("port"), () => {
+  console.log(app.get("port"), "번에서 대기중");
+});
 ```
+
 - express 모듈 실행을 위해 app 변수에 할당한다. 익스프레스 내부에 http 모듈이 내장되어 있으므로 서버의 역할이 가능하다.
 - `app.set('port', 포트)`로 서버가 실행된다. 또한, app.set(키, 값)을 사용하면 데이터를 저장할 수 있다. 저장된 데이터는 app.get(키)을 통해서 가져올 수 있다.
 - app.get(주소, 라우터)는 주소에 대한 GET 요청이 들어올 때 어떤 동작을 할지 적는 부분이다.
@@ -26,92 +28,183 @@
 <br />
 
 ### 🏃‍♂️ app.use
+
 ```js
-  //...
+//...
 
-  app.use((req, res, next) => {
-    console.log("모든 요청에 다 실행");
+app.use((req, res, next) => {
+  console.log("모든 요청에 다 실행");
+  next();
+});
+
+app.get(
+  "/",
+  (req, res, next) => {
+    console.log("GET 요청에서만 실행 됩니다.");
     next();
-  });
+  },
+  (req, res) => {
+    throw new Error("에러는 에러 처리 미들웨어로 간다.");
+  }
+);
 
-  app.get(
-    "/",
-    (req, res, next) => {
-      console.log("GET 요청에서만 실행 됩니다.");
-      next();
-    },
-    (req, res) => {
-      throw new Error("에러는 에러 처리 미들웨어로 간다.");
-    }
-  );
+app.use((err, req, res, next) => {
+  console.log(err);
+  res.status(500).send(err.message);
+});
 
-  app.use((err, req, res, next) => {
-    console.log(err);
-    res.status(500).send(err.message);
-  });
-
-  app.listen(8000, () => {
-    //...
-  });
+app.listen(8000, () => {
+  //...
+});
 ```
+
 - 미들웨어는 익스프레스에서 핵심개념이다. 요청과 응답의 중간에 위치하여 미들웨어라 불린다.
 - 미들웨어는 요청과 응답을 조작하여 기능을 추가하기도 하고, 나쁜 요청을 걸러내기도 한다.
 - 라우터나 에러 핸들러 또한 미들웨어의 일종이다.
 - 미들웨어는 app.use와 함께 사용한다. app.use(미들웨어)꼴이다.
 - 미들웨어는 위에어 아래로 순서대로 실행되면서 요청과 응답사이에 특별한 기능을 추가한다.
 - app.use에서 주소를 첫 번째 인수로 넣지 않으면 모든 요청에서 실행되고, 주소를 넣으면 해당하는 요청에서만 실행된다.
-- app.use의 매개변수로 req, res, next를 넣었는데 여기서 3번째 next 함수는 실행하지 않으면 다음 미들웨어로 넘어가지 않는다. 
+- app.use의 매개변수로 req, res, next를 넣었는데 여기서 3번째 next 함수는 실행하지 않으면 다음 미들웨어로 넘어가지 않는다.
 
 <br />
 
-### 🏃‍♂️ 각종 미들웨어
+## 📄 express 각종 미들웨어 정리
+
 ```js
-  app.use(morgan("dev"));
-  app.use("/", express.static(path.join(__dirname, "public")));
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
-  app.use(cookieParser(process.env.COOKIE_SECRET));
-  app.use(
-    session({
-      resave: false,
-      saveUninitialized: false,
-      secret: process.env.COOKIE_SECRET,
-      cookie: {
-        httpOnly: true,
-        secure: false,
-      },
-      name: "session-cookie",
-    })
-  );
+app.use(morgan("dev"));
+app.use("/", express.static(path.join(__dirname, "public")));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser(process.env.COOKIE_SECRET));
+app.use(
+  session({
+    resave: false,
+    saveUninitialized: false,
+    secret: process.env.COOKIE_SECRET,
+    cookie: {
+      httpOnly: true,
+      secure: false,
+    },
+    name: "session-cookie",
+  })
+);
 ```
-- 미들웨어는 req, res, next를 매개변수로 가지는 함수로서 app.use나 app.get, app.post 등으로 장착한다.
-- 에러처리 미들웨어만 예외적으로 err, req, res, next를 가진다.
-- 특정한 주소의 요청에만 미들웨어가 실행되게 하려면 첫 번째 인수로 주소를 넣으면 된다.
-- 다음 미들웨어로 넘어가려면 ​next 함수를 호출해야 한다. 위 예제의 미들웨어들은 내부적으로 next를 호출하고 있으므로 연달아 쓸 수 있다. next를 호출하지 않는 미들웨어는 res.send나 res.sendFile 등의 메서드로 응답을 보내야 한다. 만약 next도 호출하지 않고 응답도 보내지 않는다면 클라이언트는 응답을 받지 못해 하염없이 기다리게 된다.
+
+- 미들웨어는 `req`, `res`, `next`를 매개변수로 가지는 함수로서 app.use나 app.get, app.post 등으로 장착한다.
+- 에러처리 미들웨어만 예외적으로 `err`, `req`, `res`, `next`를 가진다.
+- 특정한 주소의 요청에만 미들웨어가 실행되게 하려면 `첫 번째 인수로 주소`를 넣으면 된다.
+- 다음 미들웨어로 넘어가려면 ​`next` 함수를 호출해야 한다. 위 예제의 미들웨어들은 `내부적으로 next를 호출`하고 있으므로 연달아 쓸 수 있다. next를 호출하지 않는 미들웨어는 `res.send`나 `res.sendFile` 등의 메서드로 응답을 보내야 한다. 만약 next도 호출하지 않고 응답도 보내지 않는다면 클라이언트는 응답을 받지 못해 하염없이 기다리게 된다.
+
+<br />
+
+### 🏃‍♂️ morgan
+
+- morgan 미들웨어는 기존 로그 외에 추갖거인 로그를 확인할 수 있다.
+
+```js
+const morgan = require("morgan");
+app.use(morgan("dev"));
+```
+
+<br />
+
+### 🏃‍♂️ static
+
+- static 미들웨어는 정적인 파일들을 제공하는 라우터 역할을 한다. 기본적으로 제공되기 때문에 설치할 필요 없이 express 객체 안에서 사용하면 된다.
+
+```js
+app.use("/", express.static(path.join(__dirname, "public")));
+```
+
+<br />
+
+### 🏃‍♂️ body-parser
+
+- 요청의 본문에 있는 데이터를 해석해서 `req.body` 객체로 만들어주는 미들웨어이다. 보통 `폼 데이터`나 `ajax 요청`의 데이터를 처리한다.
+- 단, `멀티 파트(이미지, 동영상, 파일)` 데이터는 처리하지 못한다. 멀티파트 경우에는 `multer` 모듈을 사용해서 처리한다.
+
+```js
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+```
+
+- express 4.16.0 버전 이전에는 `body-parser`를 설치하는 것을 확인할 수 있다. 하지만 4.16.0 버전 이후부터는 body-parser 미들웨어의 일부 기능이 익스프레스에 내장되었으므로 따로 설치할 필요가 없다.
+- 단, body-parser를 직접 설치하는 경우도 있는데 JSON, URL-encoded 형식의 데이터 외에도 Raw, Text 형식의 데이터를 추가로 해석해야 될 때이다.
+- Raw 데이터는 요청의 본문이 버퍼 데이터 일때, Text는 텍스트 데이터일 때 해석하는 미드루에어이다.
+
+```js
+const bodyParser = require("body-parser");
+app.use(bodyParser.raw());
+app.use(bodyParser.text());
+```
+
+- 요청 데이터를 간단하게 살펴보면 `JSON`은 `JSON 형식`의 데이터 전달 방식이다. `URL-encoded`는 `주소 형식`으로 데이터를 보내는 방식이다.
+- 폼 전송은 URL-encoded 방식을 주로 사용한다. urlencoded 메서드를 보면 `{ extended: false }`라는 옵션이 있다. 이 옵션이 `false`라면 노드의 `querystring` 모듈을 사용하여 쿼리스트링을 해석한다. `true`이면 `qs`모듈을 사용하여 쿼리스트링을 해석한다.
+- qs 모듈을 내장 모듈이 아니라 외부 npm 모듈이며, querystring 모듈의 기능을 좀 더 확장한 모듈이다.
+
+<br />
+
+### 🏃‍♂️ cookie-parser
+
+- cookie-parser는 요청에 동봉된 쿠키를 해석해 req.cookies 객체로 만든다. parseCookies 함수와 기능이 비슷하다.
+
+```js
+const cookieParser = require("cookie-parser");
+
+// 기본 문법
+app.use(cookieParser("비밀키"));
+
+// 예제
+app.use(cookieParser(process.env.COOKIE_SECRET));
+```
+
+- 해석된 쿠키들은 `req.cookies` 객체로 들어간다. 예를 들어 `name=minjae` 쿠리를 보냈다면 req.cookies는 `{ name: 'minjae' }`가 된다. 물론, 유효 기간이 지난 쿠키는 알아서 걸러낸다.
+- 위 예제를 봤다싶이 첫 번째 인자로 `비밀 키`를 넣어줄 수 있다. 서명된 쿠키가 있는 경우, 제공한 비밀 키를 통해 해당 쿠키가 내 서버가 만든 쿠키임을 `검증`할 수 있다.
+- 쿠키는 클라이언트에서 위조하기 쉽기 때문에 비밀 키를 통해 만들어낸 서명을 쿠키 값 뒤에 붙인다. 즉, 서명이 붙은 크키가 `name=minjae.sign`과 같은 모양이 됀다. 서명된 쿠키는 req.cookies 대신 `req.signedCookies` 객체에 들어 있다.
+- 참고로, cookie-parser가 쿠키를 생성할 때 쓰이는 것은 아니다. 쿠키를 `생성/제거`하기 위해서는 `res.cookie`, `res.clearCookie` 메서드를 사용해야 한다.
+
+```js
+// 기본 문법
+res.cookie(key, value, options);
+
+// 예제
+res.cookie("name", "minjae", {
+  expires: new Date(Date.now() + 90000),
+  httpOnly: true,
+  secure: true,
+});
+res.clearCooke("name", "minjae", { httpOnly: true, secure: true });
+```
+
+- res.cookie는 위 예제 형식으로 사용한다. 이때 옵션은 `domain, expires, httpOnly, maxAge, path, secure` 등이 있다.
+- 쿠키를 지울 때 키와 값 외에 `옵션도 정확히 일치`해야 쿠키가 지워진다. 단 `expires`나 `maxAge` 옵션까지는 일치할 필요가 없다.
+- 옵션중에 `signed`라는 옵션이 있는데, 이를 `true`로 설정하면 쿠키 뒤에 서명이 붙는다. 내 서버가 쿠키를 만들었다는 것을 검증할 수 있으므로 대부분의 경우 서명 옵션을 켜두는 것이 좋다. 서명을 위한 비밀 키는 cookieParser 미들웨어 인자로 넣은 `process.env.COOKIE_SECRET`이 된다.
 
 <br />
 
 ### 🏃‍♂️ multer
-```js
-  const multer = require("multer");
-  const fs = require("qs");
 
-  const upload = multer({
-    storage: multer.diskStorage({
-      destination(req, file, done) {
-        done(null, "uploads");
-      },
-      filename(req, file, done) {
-        const ext = path.extname(file.originalname);
-        done(null, path.basename(file.originalname, ext) + Date.now() + ext);
-      },
-    }),
-    limits: { fileSize: 5 * 1024 * 1024 },
-  });
+```js
+const multer = require("multer");
+const fs = require("qs");
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination(req, file, done) {
+      done(null, "uploads");
+    },
+    filename(req, file, done) {
+      const ext = path.extname(file.originalname);
+      done(null, path.basename(file.originalname, ext) + Date.now() + ext);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 ```
+
 - multer 함수의 인수로 설정을 넣는다.
 - `storage` 속성에는 어디에(destination) 어떤 이름으로(filename) 저장할지를 넣는다.
-- `destination`과 `filename` 함수의 req 매개변수에는 요청에 대한 정보가, file 객체에는 업로드한 파일에 대한 정보가 있다. 
+- `destination`과 `filename` 함수의 req 매개변수에는 요청에 대한 정보가, file 객체에는 업로드한 파일에 대한 정보가 있다.
 - `done` 매개변수는 함수이다. 첫 번째 인수에는 에러가 있다면 에러를 넣고, 두 번째 인수에는 실제 경로나 파일 이름을 넣어주면 된다. req나 file의 데이터를 가공해서 done으로 넘기는 방식이다.
 - 위 예제에서는 uploads라는 폴더에 [파일명+현재시간.확장자]파일명으로 업로드하고 있다. 현재 시간을 넣어주는 이유는 업로드하는 파일명이 겹치는 것을 막기 위함이다.
 - limits 속성에는 업로드에 대한 제한 사항을 설정할 수 있다. 파일 사이즈(fileSize, 바이트 단위)는 5MB로 제한했다.
@@ -119,23 +212,25 @@
 <br />
 
 ```js
-  try {
-    fs.readdirSync("uploads");
-  } catch (err) {
-    console.log("uploads 폴더가 없어 uploads 폴더를 생성한다.");
-    fs.mkdirSync("uploads");
-  }
+try {
+  fs.readdirSync("uploads");
+} catch (err) {
+  console.log("uploads 폴더가 없어 uploads 폴더를 생성한다.");
+  fs.mkdirSync("uploads");
+}
 ```
+
 - 위에서 multer 설정을 실제로 활용하기 위해서는 서버에 uploads라는 폴더가 꼭 존재해야한다. 없다면 직접 만들거나 fs모듈을 사용해서 서버를 시작할 때 생성한다.
 
 <br />
 
 ```js
-  app.post('upload', upload.single('image'), (req, res) => {
-    console.log(req.file, req.body);
-    res.send('ok');
-  });
+app.post("upload", upload.single("image"), (req, res) => {
+  console.log(req.file, req.body);
+  res.send("ok");
+});
 ```
+
 - 파일을 하나만 업로드하는 경우 `single` 미들웨어를 사용한다.
 - single 미들웨어를 라우터 미들웨어 앞에 넣어두면, multer 설정에 따라 파일 업로드 후 req.file 객체가 생성된다. 인수는 input 태그의 name이나 폼 데이터의 키와 일치하게 넣으면 된다.
 - 업로드 성공 시 결과는 req.file 객체 안에 들어 있다. req.body에는 파일이 아닌 데이터인 title이 들어 있다.
@@ -143,50 +238,55 @@
 <br />
 
 ```js
-  app.post('upload', upload.array('many'), (req, res) => {
-    console.log(req.files, req.body);
-    res.send('ok');
-  });
+app.post("upload", upload.array("many"), (req, res) => {
+  console.log(req.files, req.body);
+  res.send("ok");
+});
 ```
+
 - 여러 파일을 업로드 하는 경우 single대신 `array` 미들웨어로 교체한다.
 - 업로드 결과도 req.file대신 req.files 배열에 들어 있다.
 
 <br />
 
 ```js
-  app.post(
-    "/upload",
-    upload.fields([{ name: "image1" }, { name: "image2" }]),
-    (req, res) => {
-      console.log(req.files, req.body);
-      res.send("ok");
-    }
-  );
+app.post(
+  "/upload",
+  upload.fields([{ name: "image1" }, { name: "image2" }]),
+  (req, res) => {
+    console.log(req.files, req.body);
+    res.send("ok");
+  }
+);
 ```
+
 - 파일을 여러 개 업로드하지만 input 태그나 폼 데이터의 키가 다른 경우에는 `fields `미들웨어를 사용한다.
 - 업로드 결과도 req.files.image1, req.files.image2에 각각 들어 있다.
 
 <br />
 
 ```js
-  app.post('/upload', upload.none(), (req, res) => {
-    console.log(req.body);
-    res.send('ok');
-  });
+app.post("/upload", upload.none(), (req, res) => {
+  console.log(req.body);
+  res.send("ok");
+});
 ```
+
 - 특수한 경우지만 파일을 업로드하지 않고도 멀티파트 형식으로 업로드 하는 경우가 있다. 그럴 때는 `none` 미들웨어를 사용한다.
 - 파일을 업로드하지 않았으므로 req.body만 존재한다.
 
 <br />
 
 ### 🏃‍♂️ 파라미터, 쿼리스트링
+
 ```js
-  // GET /user
-  router.get("/:id", (req, res) => {
-    console.log(req.params, req.query);
-    res.send(`Hello, ${req.params.id}`);
-  });
+// GET /user
+router.get("/:id", (req, res) => {
+  console.log(req.params, req.query);
+  res.send(`Hello, ${req.params.id}`);
+});
 ```
+
 - 위 router에서 주소에 :id가 있는데, 이는 문자 그대로 :id를 의미하는 것이 아니다. 이 부분에 다른 값을 넣을 수 있다. `/user/1`이나 `/user/123` 등의 요청도 이 라우터가 처리하게 된다.
 - 이 방식의 장점은 `:id`에 해당하는 1이나 123을 조회할 수 있다는 점이며, `req.params` 객체 안에 들어있다.
 
@@ -196,6 +296,7 @@
   /user/123?limit=5&skip=10
   { id: '123 } { limit: '5', skip: '10' }
 ```
+
 - 주소에 쿼리스트링을 사용할 수도 있다. 쿼리스트링의 키-값 정보는 `req.query` 객체 안에 들어있다.
 - 예를 들어 위 예제처럼 주소의 요청이 들어오면 req.params와 req.query 객체는 주소 밑에 객체처럼 들어온다.
 
