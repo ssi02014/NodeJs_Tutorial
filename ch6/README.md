@@ -21,22 +21,41 @@ app.listen(app.get("port"), () => {
 
 - express 모듈 실행을 위해 app 변수에 할당한다. 익스프레스 내부에 http 모듈이 내장되어 있으므로 서버의 역할이 가능하다.
 - `app.set('port', 포트)`로 서버가 실행된다. 또한, app.set(키, 값)을 사용하면 데이터를 저장할 수 있다. 저장된 데이터는 app.get(키)을 통해서 가져올 수 있다.
-- app.get(주소, 라우터)는 주소에 대한 GET 요청이 들어올 때 어떤 동작을 할지 적는 부분이다.
-- express에서는 res.write, res.end 대신 `res.send`를 사용한다. HTML 파일을 갖고 오고 싶으면 res.sendFile을 사용하면 된다. 단 파일의 경로를 path 모듈을 사용해서 지정해야 한다.
-- listen을 하는 부분은 http 웹 서버와 동일하다.
+- `app.get(주소, 라우터)`는 주소에 대한 GET 요청이 들어올 때 어떤 동작을 할지 적는 부분이다.
+- express에서는 res.write, res.end 대신 `res.send`를 사용한다. HTML 파일을 갖고 오고 싶으면 `res.sendFile`을 사용하면 된다. 단 파일의 경로를 `path` 모듈을 사용해서 지정해야 한다.
+- GET 요청 외도 POST, PUT, PATCH, DELETE, OPTIONS에 대한 라우터를 위한 `app.post, app.put, app.patch, app.delete app.options` 메서드가 존재한다.
+- listen을 하는 부분은 http 웹 서버와 동일하다. 포트를 연결하고 서버를 실행한다. 포트는 `app.get('port')`로 가져온다.
 
 <br />
 
-### 🏃‍♂️ app.use
+## 📄 app.use
+
+- 미들웨어는 Express에서 핵심개념이다. 요청과 응답의 `중간(middle)`에 위치하여 미들웨어라 불린다.
+- 미들웨어는 `요청`과 `응답`을 조작하여 기능을 추가하기도 하고, 나쁜 요청을 걸러내기도 한다.
+- `라우터`나 `에러 핸들러` 또한 미들웨어의 일종이다. 따라서 미들웨어가 Express의 전부라고 해도 과언이 아니다.
+- 미들웨어는 `app.use`와 함께 사용한다. app.use(미들웨어)꼴이다.
 
 ```js
-//...
-
 app.use((req, res, next) => {
   console.log("모든 요청에 다 실행");
   next();
 });
+```
 
+- app.use의 매개변수 `req`, `res`, `next`인 콜백 함수를 넣으면 된다. (이 콜백함수가 미들웨어)
+- 미들웨어는 위에서 아래로 순서대로 실행되면서 요청과 응답사이에 `특별한 기능`을 추가한다.
+- app.use에서 주소를 첫 번째 인수로 넣지 않으면 모든 요청에서 실행되고, 주소를 넣으면 해당하는 요청에서만 실행된다.
+- app.use의 매개변수로 req, res, next를 넣었는데 여기서 3번째 next 함수는 실행하지 않으면 다음 미들웨어가 실행되지 않는다.
+
+```
+app.use(미들웨어) : 모든 요청에서 미들웨어 실행
+app.use('/abc', 미들웨어): abc로 시작하는 요청에서 미들웨어 실행
+app.post('/abc, 미들웨어): abc로 시작하는 POST 요청에서 미들웨어 실행
+```
+
+- 참고로 app.use나 app.get 같은 라우터에 미들웨어를 여러 개 장착할 수 있다.
+
+```js
 app.get(
   "/",
   (req, res, next) => {
@@ -47,30 +66,44 @@ app.get(
     throw new Error("에러는 에러 처리 미들웨어로 간다.");
   }
 );
+```
 
+- 위 예제는 app.get 라우터에 미들웨어가 두 개 연결되어 있다. 다만 이때도 next를 호출해야 다음 미들웨어로 넘어갈 수 있다.
+- 또한, 위 예제에서는 지금 두 번째 미들웨어에서 에러가 발생하고 있다. 이 에러는 아래 예제의 에러 처리 미들웨어에 전달 된다.
+
+```js
+// 에러 처리 미들웨어
 app.use((err, req, res, next) => {
   console.log(err);
   res.status(500).send(err.message);
 });
-
-app.listen(8000, () => {
-  //...
-});
 ```
 
-- 미들웨어는 익스프레스에서 핵심개념이다. 요청과 응답의 중간에 위치하여 미들웨어라 불린다.
-- 미들웨어는 요청과 응답을 조작하여 기능을 추가하기도 하고, 나쁜 요청을 걸러내기도 한다.
-- 라우터나 에러 핸들러 또한 미들웨어의 일종이다.
-- 미들웨어는 app.use와 함께 사용한다. app.use(미들웨어)꼴이다.
-- 미들웨어는 위에어 아래로 순서대로 실행되면서 요청과 응답사이에 특별한 기능을 추가한다.
-- app.use에서 주소를 첫 번째 인수로 넣지 않으면 모든 요청에서 실행되고, 주소를 넣으면 해당하는 요청에서만 실행된다.
-- app.use의 매개변수로 req, res, next를 넣었는데 여기서 3번째 next 함수는 실행하지 않으면 다음 미들웨어로 넘어가지 않는다.
+- 에러 처리 미들웨어는 매개변수가 `err`, `req`, `res`, `next`로 네 개이다. 모든 매개변수를 사용하지 않더라도 `매개변수가 반드시 네 개여야 한다.`
+- err에는 `에러에 관한 정보`가 담겨있다. `res.status` 메서드로 `HTTP 상태 코드`를 지정할 수 있다. 참고로 `기본값은 200(성공)`이다.
+- 사실 에러 처리 미들웨어를 직접 연결하지 않아도 기본적으로 Express가 에러를 처리하긴 한다. 하지만 실무에서는 직접 에러 처리 미들웨어를 연결해주는 것이 좋다.
+- 에러 처리 미들웨어는 특별한 경우가 아니라면 가장 아래에 위치하도록 하자.
 
 <br />
 
 ## 📄 express 각종 미들웨어 정리
 
 ```js
+const express = require("express");
+const path = require("path");
+const morgan = require("morgan");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
+const dotenv = require("dotenv");
+const multer = require("multer");
+const fs = require("fs");
+
+dotenv.config();
+
+const app = express();
+
+app.set("port", process.env.PORT || 8000);
+
 app.use(morgan("dev"));
 app.use("/", express.static(path.join(__dirname, "public")));
 app.use(express.json());
@@ -88,12 +121,11 @@ app.use(
     name: "session-cookie",
   })
 );
+
+// ...
 ```
 
-- 미들웨어는 `req`, `res`, `next`를 매개변수로 가지는 함수로서 app.use나 app.get, app.post 등으로 장착한다.
-- 에러처리 미들웨어만 예외적으로 `err`, `req`, `res`, `next`를 가진다.
-- 특정한 주소의 요청에만 미들웨어가 실행되게 하려면 `첫 번째 인수로 주소`를 넣으면 된다.
-- 다음 미들웨어로 넘어가려면 ​`next` 함수를 호출해야 한다. 위 예제의 미들웨어들은 `내부적으로 next를 호출`하고 있으므로 연달아 쓸 수 있다. next를 호출하지 않는 미들웨어는 `res.send`나 `res.sendFile` 등의 메서드로 응답을 보내야 한다. 만약 next도 호출하지 않고 응답도 보내지 않는다면 클라이언트는 응답을 받지 못해 하염없이 기다리게 된다.
+- 위 예제를 보면 설치한 패키지들을 불러온 뒤 app.use에 연결한다 이때 req, res, next같은 것들이 보이지 않는데 미들웨어 내부에 들어있다. next도 내부적으로 호출하기에 자동으로 다음 미들웨어로 넘어갈 수 있다.
 
 <br />
 
@@ -110,11 +142,17 @@ app.use(morgan("dev"));
 
 ### 🏃‍♂️ static
 
-- static 미들웨어는 정적인 파일들을 제공하는 라우터 역할을 한다. 기본적으로 제공되기 때문에 설치할 필요 없이 express 객체 안에서 사용하면 된다.
+- static 미들웨어는 `정적인 파일`들을 제공하는 `라우터 역할`을 한다. 기본적으로 제공되기 때문에 설치할 필요 없이 express 객체 안에서 사용하면 된다.
 
 ```js
 app.use("/", express.static(path.join(__dirname, "public")));
 ```
+
+- 함수의 인자로 정적 파일들이 담겨 있는 폴더를 지정하면 된다. 현재 public 폴더가 지정되어 있다. 예를 들어 `public/stylesheets/style.css`는 `http://localhost:3000/stylesheets/style.css`로 접근할 수 있다.
+- public 폴더를 만들고 css, js, 이미지 파일 등을 public에 넣으면 브라우저에서 접근할 수 있게 된다.
+- 이때, 실제 서버의 폴더 경로에는 public이 있지만, 요청 주소에는 public이 없다. 이는 서버의 폴더 경로와 요청 경로가 다르므로 외부인지 서버의 구조를 쉽게 파악할 수 없게 한다. 즉 보안에 큰 도움이 된다.
+- 또한 `정적 파일들을 알아서 제공`해주므로 fs.readFile로 파일을 직접 읽어서 전송할 필요가 없다.
+- 요청 경로에 해당하는 파일이 없으면 알아서 내부적으로 next를 호출한다. 파일을 발견하면 다음 미들웨어는 실행되지 않는다. 이유는 응답으로 파일을 보내고 next를 호출하지 않기 때문이다.
 
 <br />
 
@@ -129,8 +167,8 @@ app.use(express.urlencoded({ extended: false }));
 ```
 
 - express 4.16.0 버전 이전에는 `body-parser`를 설치하는 것을 확인할 수 있다. 하지만 4.16.0 버전 이후부터는 body-parser 미들웨어의 일부 기능이 익스프레스에 내장되었으므로 따로 설치할 필요가 없다.
-- 단, body-parser를 직접 설치하는 경우도 있는데 JSON, URL-encoded 형식의 데이터 외에도 Raw, Text 형식의 데이터를 추가로 해석해야 될 때이다.
-- Raw 데이터는 요청의 본문이 버퍼 데이터 일때, Text는 텍스트 데이터일 때 해석하는 미드루에어이다.
+- 단, body-parser를 직접 설치하는 경우도 있는데 `JSON`, `URL-encoded` 형식의 데이터 외에도 `Raw`, `Text` 형식의 데이터를 추가로 해석해야 될 때이다.
+- Raw 데이터는 요청의 본문이 버퍼 데이터 일때, Text는 텍스트 데이터일 때 해석하는 미들웨어이다.
 
 ```js
 const bodyParser = require("body-parser");
@@ -140,13 +178,14 @@ app.use(bodyParser.text());
 
 - 요청 데이터를 간단하게 살펴보면 `JSON`은 `JSON 형식`의 데이터 전달 방식이다. `URL-encoded`는 `주소 형식`으로 데이터를 보내는 방식이다.
 - 폼 전송은 URL-encoded 방식을 주로 사용한다. urlencoded 메서드를 보면 `{ extended: false }`라는 옵션이 있다. 이 옵션이 `false`라면 노드의 `querystring` 모듈을 사용하여 쿼리스트링을 해석한다. `true`이면 `qs`모듈을 사용하여 쿼리스트링을 해석한다.
-- qs 모듈을 내장 모듈이 아니라 외부 npm 모듈이며, querystring 모듈의 기능을 좀 더 확장한 모듈이다.
+- qs 모듈을 내장 모듈이 아니라 `외부 npm 패키지`이며, querystring 모듈의 기능을 좀 더 확장한 모듈이다.
+- 기존에 POST와 PUT 요청의 본문을 전달 받으려면 req.on('data'), req.on('end')로 스트림을 사용해야 했는데, body-parser를 사용하면 그럴 필요가 없다. 패키지 내부적으로 스트림을 처리해 req.body에 추가한다.
 
 <br />
 
 ### 🏃‍♂️ cookie-parser
 
-- cookie-parser는 요청에 동봉된 쿠키를 해석해 req.cookies 객체로 만든다. parseCookies 함수와 기능이 비슷하다.
+- cookie-parser는 요청에 동봉된 `쿠키`를 해석해 `req.cookies` 객체로 만든다. `parseCookies` 함수와 기능이 비슷하다.
 
 ```js
 const cookieParser = require("cookie-parser");
@@ -179,6 +218,134 @@ res.clearCooke("name", "minjae", { httpOnly: true, secure: true });
 - res.cookie는 위 예제 형식으로 사용한다. 이때 옵션은 `domain, expires, httpOnly, maxAge, path, secure` 등이 있다.
 - 쿠키를 지울 때 키와 값 외에 `옵션도 정확히 일치`해야 쿠키가 지워진다. 단 `expires`나 `maxAge` 옵션까지는 일치할 필요가 없다.
 - 옵션중에 `signed`라는 옵션이 있는데, 이를 `true`로 설정하면 쿠키 뒤에 서명이 붙는다. 내 서버가 쿠키를 만들었다는 것을 검증할 수 있으므로 대부분의 경우 서명 옵션을 켜두는 것이 좋다. 서명을 위한 비밀 키는 cookieParser 미들웨어 인자로 넣은 `process.env.COOKIE_SECRET`이 된다.
+
+<br />
+
+### 🏃‍♂️ express-session
+
+- 세션 관리용 미들웨어이다. 로그인 등의 이유로 세션을 구현하거나 특정 사용자를 위한 데이터를 임시적으로 저장해둘 때 매우 유용하다.
+- 세션은 사용자별로 req.session 객체안에 유지된다.
+
+```js
+app.use(
+  session({
+    resave: false,
+    saveUninitialized: false,
+    secret: process.env.COOKIE_SECRET,
+    cookie: {
+      httpOnly: true,
+      secure: false,
+    },
+    name: "session-cookie",
+  })
+);
+```
+
+- express-session 1.5 버전 이전에는 내부적으로 cookie-parser를 사용하고 있어 cookie-parser 미들웨어보다 뒤에 위치해야했지만 1.5 버전 이후부터는 사용하지 않게 되서 순서가 상관없어졌다. 그래도 `cookie-parser 미들웨어 뒤에 놓는 것이 안전`하다.
+- express-session은 인자로 `세션에 대한 설정`을 받는다.
+  1. `resave`는 요청이 올 때 세션에 수정 사항이 생기지 않더라도 세션을 다시 저장할지 설정하는 것이다.
+  2. `saveUninitialized`는 세션에 저장할 내역이 없더라도 처음부터 세션을 생성할지 설정하는 것이다.
+  3. `secret`은 클라이언트에 쿠키를 보낼 때(세션 쿠키) 안전하게 전송하기 위해 `서명`을 추가해야되는데 이때 서명에 필요한 값을 넣는다. cookie-parser의 secret과 같게 설정하는 것이 좋다.
+  4. `name`은 세션 쿠키의 이름이다. 기본 값은 `connect.sid`이다.
+- cookie 옵션은 세션 쿠키에 대한 설정이다. `domain, expires, httpOnly, maxAge, path, secure, sameSite` 등 일반적인 쿠키 옵션이 모두 제공된다.
+- 위 예제에서는 `httpOnly`를 `true`로 설정해 클라이언트에서 쿠키를 확인하지 못하도록 했고, `secure`는 false로 해서 https가 아닌 환경에서도 사용할 수 있게 했다. 배포 시에는 https를 적용하고 secure도 true로 설정하는 것이 좋다.
+- 추가적으로 위 예제에는 없지만 `store`라는 옵션도 있다. 현재는 `메모리에 세션을 저장`하도록 되어 있다. 문제는 서버를 재시작하면 메모리가 초기화되서 세션이 모두 사라진다는 것이다. 따라서 이것도 배포 시에는 store에 `DB`를 연결해 세션을 유지하는 것이 좋다. 보통 `Redis(레디스)`가 자주 쓰인다.
+
+```js
+req.session.name = "minjae"; // 세션 등록
+req.sessionID; // 세션 아이디 확인
+req.session.destroy(); // 세션 모두 제거
+```
+
+- express-session으로 만들어진 `req.session` 객체에 값을 대입하거나 삭제해서 세션을 변경할 수 있다. 세션을 한 번에 삭제하려면 `req.session.destroy` 메서드를 호출하면 된다.
+- 현재의 세션의 아이디는 req.sessionID로 확인할 수 있다.
+- 세션을 강제로 저장하기 위해 req.session.sava 메서드도 존재하지만, 일반적으로 요청이 끝날 때 자동 호출되므로 직접 sava 메서드를 호출하는 일은 거의 없다.
+- express-session을 통해 전송한 세션 쿠키는 모양이 조금 특이한데, 서명한 쿠키 앞에 `s:`이 붙습니다. 이는 실제로 `encodeURIComponent` 함수가 실행되어 `s%3A`가 됩니다.
+
+<br />
+
+### 🏃‍♂️ 마들웨어 특성 활용 및 알아보기 (중간 정리)
+
+- 미들웨어는 `req, res, next를 매개변수로 가지는 함수`이다. 에러 처리 미들웨어만 예외적으로 err, req, res, next를 가진다.
+- 미들웨어는 `app.use`나 `app.get`, `app.post` 등으로 장착한다. 특정한 주소의 요청에만 미들웨어가 실행하게 하려면 첫 번째 인수로 주소를 넣으면 된다.
+
+```js
+app.use(
+  morgan("dev"),
+  express.static("/", path.join(__dirname, "public")),
+  express.join(),
+  express.urlencoded({ extended: false }),
+  cookieParser(process.env.COOKIE_SECRET)
+);
+```
+
+- 위와 같이 `동시에 여러 개의 미들웨어를 장착`할 수 있으며, 다음 미들웨어로 넘어가려면 `next 함수`를 호출해야 한다. 위 미들웨어들은 내부적으로 next를 호출하고 있으므로 연달아 쓸 수 있다.
+- next를 호출하지 않는 미들웨어는 `res.send`나 `res.sendFile` 등의 메서드로 응답을 보내야 한다.
+- `express.static`과 같은 미들웨어는 정적 파일을 제공할 때 next 대신 `res.sendFile` 메서드로 응답을 보낸다. 따라서 정적 파일을 제공하는 경우 그 밑에 있는 express.json, express.urlencoded, cookieParser 미들웨어는 실행되지 않는다.
+- 미들웨어 장착 순서에 따라 어떤 미들웨어는 실행되지 않을 수도 있다는 것을 꼭 기억해두자.
+- 만약 next도 호출하지 않고 응답도 보내지 않는다면 클라이언트는 응답을 받지 못해 하염없이 기다리게 된다.
+
+```js
+next(); // 다음 미들웨어로
+next("route"); // 다음 라우터로
+next(error); // 에러 핸들러로
+```
+
+- 지금까지는 next에 아무런 인수를 넣지 않았지만 위 예제처럼 next 함수에 인수를 넣을 수도 있다. 단, 인수를 넣는다면 특수한 동작을 한다.
+- `route`라는 문자열을 넣으면 다음 라우터의 미들웨어로 바로 이동하고, 그 외의 인수를 넣으면 바로 에러 처리 미들웨어로 이동한다.
+- 이때, 인수는 에러 처리 미들웨어의 err 매개변수가 된다. 라우터에서 에러가 발생할 때 에러를 next(err)을 통해 에러 처리 미들웨어로 넘긴다.
+
+```js
+app.use(
+  (req, res, next) => {
+    req.data = "데이터 넣기";
+    next();
+  },
+  (req, res, next) => {
+    console.log(req.data); // 데이터 받기
+    next();
+  }
+);
+```
+
+- 미들웨어 간에 데이터를 전달하는 방법도 있다. 세션을 사용한다면 `req.session` 객체에 데이터를 넣어도 되지만, 세션이 유지되는 동안에 데이터도 계속 유지된다는 단점이 있다. 만약 요청이 끝날 때까지만 데이터를 유지하고 싶다면 req 객체에 데이터를 넣어두면 된다.
+- 위 예제처럼 작성하면 현재 요청이 처리되는 동안 req.data를 통해 미들웨어 간에 데이터를 공유할 수 있다. 새로운 요청이 오면 req.data는 초기화된다.
+- 참고로 속성명이 꼭 data일 필요는 없지만 다른 미들웨어와 겹치지 않게 조심해야 한다. 예를 들어 body로하면 body-parser 미들웨어와 겹친다.
+
+```
+app.set vs app.use
+
+app.set으로 Express 데이터를 저장할 수 있다. app.get 또는 req.app.get으로 어디서든지 데이터를 가져올 수 있다.
+하지만 app.set을 사용하지 않고 req 객체에 데이터를 넣어서 다음 미들웨어로 전달하는 이유가 있다.
+app.set은 Express에서 전역으로 사용되므로 사용자 개개인의 값을 넣기에는 부적절하며, 앱 전체 설정을 공유할 때 사용된다.
+req 객체는 요청을 보낸 사용자 개개인에게 귀속되므로 req 객체를 통해 개인의 데이터를 전달하는 것이 좋다.
+```
+
+- 미들웨어를 사용할 때 유용한 패턴 한 가지를 소개한다. 바로 미들웨어 안에 미들웨어를 넣는 방식이다.
+
+```js
+app.use(morgan("dev"));
+
+// or
+
+app.use((req, res, next) => {
+  morgan("dev")(req, res, next);
+});
+```
+
+- 위 예제의 두 방식은 같은 기능을 한다. 하지만 미들웨어안에 미들웨어를 넣는 패턴이 유용한 이유는 기존 미들웨어의 기능을 확장할 수 있기 때문이다.
+
+```js
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === "production") {
+    morgan("combined")(req, res, next);
+  } else {
+    morgan("dev")(req, res, next);
+  }
+});
+```
+
+- 위 예제처럼 분기 처리를 할 때도 유용하게 사용할 수 있다.
 
 <br />
 
