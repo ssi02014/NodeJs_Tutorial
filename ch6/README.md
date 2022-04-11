@@ -477,27 +477,218 @@ app.post("/upload", upload.none(), (req, res) => {
 
 <br />
 
+## 📄 Router 객체로 라우팅 분리하기
+
+- 기존에는 라우터를 만들 때 요청 메서드와 주소별로 분기 처리를 하느라 코드가 매우 복잡했다. 하지만 익스프레스를 사용하면 라우팅을 깔끔하게 관리할 수 있다.
+- app.js에서 app.get같은 메서드가 라우터 부분이다. 라우터를 많이 연결하면 app.js 코드가 매우 길어지므로 익스프레스에서는 라우터를 분리할 수 잇는 방법을 제공한다.
+
+```js
+// routers/index.js
+const express = require("express");
+
+const router = express.Router();
+
+// GET / 라우터
+router.get("/", (req, res) => {
+  res.send("Hello, Express");
+});
+
+module.exports = router;
+```
+
+```js
+// routers/user.js
+const express = require("express");
+
+const router = express.Router();
+
+// GET /user 라우터
+router.get("/", (req, res) => {
+  res.send("Hello, User");
+});
+
+module.exports = router;
+```
+
+- 위와 같이 만든 index.js와 user.js를 app.use를 통해 app.js에 연결한다. 또한, 에러 처리 미들웨어 위에 404상태 코드를 응답하는 미들웨어를 추가한다.
+
+```js
+const indexRouter = require("./routes");
+const userRouter = require("./routes/user");
+
+const app = express();
+
+// 다른 미들웨어...
+
+app.use("/", indexRouter);
+app.use("/user", userRouter);
+
+app.use((req, res, next) => {
+  res.status(404).send("Not Found");
+});
+```
+
+- index.js와 user.js는 모양이 거의 비슷하지만, 다른 주소의 라우터 역할을 하고 있다. `app.use로 연결할 때의 차이` 때문이다.
+- indexRouter는 `app.use('/')`에 연결했고, useRouter는 `app.use('/user')`에 연결했다.
+- indexRouter는 use의 `'/'`와 get의 `'/'`가 합쳐져 `GET / 라우터`가 됬다.
+- userRouter는 use의 `'/user'`와 get의 `'/'`가 합쳐져 `GET /user 라우터`가 됬다.
+- 이렇게 app.use로 연결할 때 `주소가 합쳐진다는 것`을 염두해 두면 된다.
+
+<br />
+
+- 이전에 next 함수에 다음 라우터로 넘어가는 기능이 있다고 소개했다. 바로 next('route')이며, 라우터에 연결된 나머지 미들웨어를 건너뛰고 싶을 때 사용한다.
+
+```js
+router.get(
+  "/",
+  function (req, res, next) {
+    next("route");
+  },
+  function (req, res, next) {
+    console.log("실행x");
+    next();
+  },
+  function (req, res, next) {
+    console.log("실행x");
+    next();
+  }
+);
+
+router.get("/", function (req, res, next) {
+  console.log("실행된다");
+  res.send("Hello, Express");
+});
+```
+
+- 위 예제처럼 같은 주소의 라우터를 여러 개 만들어도 된다. 라우터가 몇 개든 간에 next()를 호출하면 다음 미들웨어가 실행된다.
+- 첫 번째 라우터의 첫 번째 미들웨어에서 next() 대신 next('route')를 호출했다. 이 경우 2, 3번째 미들웨어는 실행되지 않는다. 대신 주소와 일치하는 다음 라우터로 넘어간다.
+- 이때 유용한 팁이, 라우터 주소에는 정규표현식을 비롯한 특수 패턴을 사용할 수 있다. 여러가지 패턴이 있는데 자주 쓰이는 패턴만 알아보자.
+
+<br />
+
 ### 🏃‍♂️ 파라미터, 쿼리스트링
 
 ```js
-// GET /user
-router.get("/:id", (req, res) => {
+router.get("/user/:id", function (req, res) {
   console.log(req.params, req.query);
   res.send(`Hello, ${req.params.id}`);
 });
 ```
 
-- 위 router에서 주소에 :id가 있는데, 이는 문자 그대로 :id를 의미하는 것이 아니다. 이 부분에 다른 값을 넣을 수 있다. `/user/1`이나 `/user/123` 등의 요청도 이 라우터가 처리하게 된다.
-- 이 방식의 장점은 `:id`에 해당하는 1이나 123을 조회할 수 있다는 점이며, `req.params` 객체 안에 들어있다.
+- 지금 주소에 `:id`가 있다. 이는 문자 그대로 :id를 의미하는 것이 아니다. 이 부분에는 다른 값을 넣을 수 있다.
+- `user/1`이나 `user/123` 등의 요청도 이 라우터가 처리하게 된다. 이 방식의 장점은 `:id`에 해당하는 1이나 123을 조회할 수 있다는 점이며, req.params 객체 안에 들어 있다.
+- :id면 `req.params.id`로, :type이면 `req.params.type`으로 조회할 수 있다.
+- 단, 이 패턴의 주의점은 `일반 라우터보다 뒤에 위치`해야 한다는 점이다. 다양한 라우터를 아우르는 와일드 카드 역할을 하므로 일반 라우터보다는 뒤에 위치해야 다른 라우터를 방해하지 않는다.
+
+```js
+router.get("/user/:id", function (req, res) {
+  console.log("이놈만 실행됩니다.");
+});
+router.get("/user/like", function (req, res) {
+  console.log("전혀 실행되지 않는다.");
+});
+```
+
+- `/user/like` 같은 라우터는 `/user/:id` 같은 라우트 매개변수를 쓰는 라우터보다 위에 위치해야 한다.
+- 추가적으로, 주소에 `쿼리스트링`을 쓸 때도 있다. 쿼리스트링의 키-값 정보는 req.query 객체 안에 들어 있다.
+- 예를 들어 `/user/123?limit=5&skip=10` 이라는 주소의 요청이 들어오면 req.params와 req.query 객체는 다음과 같다.
+
+```js
+{ id: '123' } // req.params
+{ limit: '5', skip: '10' } // req.query
+```
 
 <br />
 
-```
-  /user/123?limit=5&skip=10
-  { id: '123 } { limit: '5', skip: '10' }
+### 🏃‍♂️ 404 미들웨어
+
+- app.js에서 에러 처리 미들웨어 위에 넣어둔 미들웨어는 일치하는 라우터가 없을 때 404상태 코드를 응답하는 역할을 한다.
+- 미들웨어가 존재하지 않아도 익스프레스가 자체적으로 404 에러를 처리해주기는 하지만, 웬만하면 404 응답 미들웨어가 에러 처리 미들웨어를 연결해주는 것이 좋다.
+
+```js
+app.use((req, res, next) => {
+  res.status(404).send("Not Found");
+});
 ```
 
-- 주소에 쿼리스트링을 사용할 수도 있다. 쿼리스트링의 키-값 정보는 `req.query` 객체 안에 들어있다.
-- 예를 들어 위 예제처럼 주소의 요청이 들어오면 req.params와 req.query 객체는 주소 밑에 객체처럼 들어온다.
+- 해당 미들웨어를 제거하면 404 상태 코드와 함께 Cannot GET /abc 메시지가 응답된다.
 
 <br />
+
+### 🏃‍♂️ 라우터 활용법/팁
+
+- 라우터에서 자주 쓰이는 활용법으로 app.route나 router.route가 있다.
+
+```js
+router.get("/abc", (req, res) => {
+  res.send("GET /abc");
+});
+
+router.post("/abc", (req, res) => {
+  res.send("POST /abc");
+});
+```
+
+- 위 예제처럼 주소는 같지만 메서드가 다른 코드가 있을 대 이를 하나의 덩어리로 줄일 수 있다.
+
+```js
+router
+  .route("/abc")
+  .get((req, res) => {
+    res.send("GET /abc");
+  })
+  .post((req, res) => {
+    res.send("POST /abc");
+  });
+```
+
+- 다시 위에 처럼 수정하면 관련있는 코드끼리 묶어 더 보기 좋게 만들 수 있다.
+
+<br />
+
+## 📄 req, res 객체 살펴보기
+
+- 익스프레스 req, res 객체는 http 모듈의 req, res 객체를 `확장`한 것이다. 기존 http 모듈의 메서드도 사용할 수 있고, 익스프레스가 추가한 메서드나 속성을 사용할 수도 있다.
+- 예를 들어, `res.writeHead`, `res.write`, `res.end` 메서드를 그대로 사용할 수 있으면서 `res.send`나 `res.sendFile` 같은 메서드도 사용할 수 있다.
+- 익스프레스가 많은 속성과 메서드를 추가했지만, 자주 쓰이는 것 위주로만 알아보자.
+
+<br />
+
+### 🏃‍♂️ 자주쓰이는 req 객체 속성
+
+- req.app: req 객체를 통해 `app` 객체에 접근할 수 있다. `req.app.get('port')`와 같은 식으로 사용 할 수 있다.
+- req.body: `body-parser` 미들웨어가 만드는 요청의 본문을 해석한 객체이다.
+- req.cookies: `cookie-parser` 미들웨어가 만드는 요청의 쿠키를 해석한 객체이다.
+- req.signedCookies: `서명된 쿠키`들은 req.cookies 대신 여기에 담겨있다.
+- req.ip: 요청의 `ip 주소`가 담겨있다.
+- req.params: `라우트 매개변수(파라미터)`에 대한 정보가 담긴 객체이다.
+- req.query: `쿼리스트링`에 대한 정보가 담긴 객체이다.
+- req.get(헤더 이름): `헤더의 값`을 가져오고 싶을 때 사용하는 메서드이다.
+
+<br />
+
+### 🏃‍♂️ 자주쓰이는 res 객체 속성
+
+- res.app: req.app처럼 res 객체를 통해 `app` 객체에 접근할 수 있다.
+- res.cookie(키, 값, 옵션): `쿠키를 설정`하는 메서드이다.
+- res.clearCookie(키, 값, 옵션): `쿠키를 제거`하는 메서드이다.
+- res.end(): `데이터 없이 응답`을 보낸다.
+- res.json(JSON): `JSON 형식의 응답`을 보낸다.
+- res.redirect(주소): `리다이렉트할 주소`와 함께 응답을 보낸다.
+- res.render(뷰, 데이터): `템플릿 엔진`을 렌더링해서 응답할 때 사용하는 메서드이다.
+- res.send(데이터): `데이터와 함께 응답`을 보낸다. 데이터는 `문자열`일 수도 있고 `HTML` 일 수도 있고, `버퍼`일 수도 있고 `객체나 배열`일 수도 있다.
+- res.sendFile(경로): `경로에 위치한 파일을 응답`한다.
+- res.set(헤더, 값): `응답의 헤더를 설정`한다.
+- res.status(코드): 응답 시의 `HTTP 상태 코드`를 지정한다.
+
+<br />
+
+```js
+res.status(201).cookie("test", "test").redirect("/admin");
+```
+
+- 위 예제처럼 req나 res 객체의 메서드는 다음과 같이 메서드 체이닝을 지원하는 경우가 많다. 메서드 체이닝을 활용하면 코드양을 줄일 수 있다.
+
+<br />
+
+## 📄 템플릿 엔진 사용하기
