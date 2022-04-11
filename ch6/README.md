@@ -309,7 +309,7 @@ app.use(
 ```
 
 - 미들웨어 간에 데이터를 전달하는 방법도 있다. 세션을 사용한다면 `req.session` 객체에 데이터를 넣어도 되지만, 세션이 유지되는 동안에 데이터도 계속 유지된다는 단점이 있다. 만약 요청이 끝날 때까지만 데이터를 유지하고 싶다면 req 객체에 데이터를 넣어두면 된다.
-- 위 예제처럼 작성하면 현재 요청이 처리되는 동안 req.data를 통해 미들웨어 간에 데이터를 공유할 수 있다. 새로운 요청이 오면 req.data는 초기화된다.
+- 위 예제처럼 작성하면 현재 요청이 처리되는 동안 req.data를 통해 `미들웨어 간에 데이터를 공유`할 수 있다. 새로운 요청이 오면 req.data는 초기화된다.
 - 참고로 속성명이 꼭 data일 필요는 없지만 다른 미들웨어와 겹치지 않게 조심해야 한다. 예를 들어 body로하면 body-parser 미들웨어와 겹친다.
 
 ```
@@ -351,6 +351,19 @@ app.use((req, res, next) => {
 
 ### 🏃‍♂️ multer
 
+- multer는 이미지, 동영상 등을 비롯한 여러 가지 파일들을 멀티파트 형식으로 업로드 할 때 사용하는 미들웨어이다.
+- 멀티파트 형식이란 `enctype`이 `multipart/form-data`인 폼을 통해 업로드하는 데이터의 형식을 의미한다.
+
+```js
+<form id="form" action="/upload" method="post" enctype="multipart/form-data">
+  <input type="file" name="image" />
+  <input type="text" name="title" />
+  <button type="submit">업로드</button>
+</form>
+```
+
+- 위와 같이 폼을 통해 업로드하는 파일은 body-parser로는 처리할 수 없고 직접 파싱(해석)하기도 어려우므로 multer 미들웨어를 사용하면 편리하다.
+
 ```js
 const multer = require("multer");
 const fs = require("qs");
@@ -371,10 +384,11 @@ const upload = multer({
 
 - multer 함수의 인수로 설정을 넣는다.
 - `storage` 속성에는 어디에(destination) 어떤 이름으로(filename) 저장할지를 넣는다.
-- `destination`과 `filename` 함수의 req 매개변수에는 요청에 대한 정보가, file 객체에는 업로드한 파일에 대한 정보가 있다.
-- `done` 매개변수는 함수이다. 첫 번째 인수에는 에러가 있다면 에러를 넣고, 두 번째 인수에는 실제 경로나 파일 이름을 넣어주면 된다. req나 file의 데이터를 가공해서 done으로 넘기는 방식이다.
+- `destination`과 `filename` 함수의 req 매개변수에는 요청에 대한 정보가 있다.
+- `file` 객체에는 업로드한 파일에 대한 정보가 있다.
+- `done` 매개변수는 함수이다. 첫 번째 인수에는 에러가 있다면 `에러`를 넣고, 두 번째 인수에는 `실제 경로`나 `파일 이름`을 넣어주면 된다. req나 file의 데이터를 가공해서 done으로 넘기는 방식이다.
 - 위 예제에서는 uploads라는 폴더에 [파일명+현재시간.확장자]파일명으로 업로드하고 있다. 현재 시간을 넣어주는 이유는 업로드하는 파일명이 겹치는 것을 막기 위함이다.
-- limits 속성에는 업로드에 대한 제한 사항을 설정할 수 있다. 파일 사이즈(fileSize, 바이트 단위)는 5MB로 제한했다.
+- limits 속성에는 업로드에 대한 제한 사항을 설정할 수 있다. 파일 사이즈(fileSize, 바이트 단위)는 `5MB`로 제한했다.
 
 <br />
 
@@ -387,22 +401,29 @@ try {
 }
 ```
 
-- 위에서 multer 설정을 실제로 활용하기 위해서는 서버에 uploads라는 폴더가 꼭 존재해야한다. 없다면 직접 만들거나 fs모듈을 사용해서 서버를 시작할 때 생성한다.
+- 위에서 multer 설정을 실제로 활용하기 위해서는 서버에 `uploads`라는 폴더가 꼭 존재해야한다. 없다면 직접 만들거나 `fs모듈`을 사용해서 서버를 시작할 때 생성한다.
+- 설정이 끝나면 `upload` 변수가 생기는데, 여기에 다양한 종류의 미들웨어가 들어있다.
 
 <br />
 
 ```js
-app.post("upload", upload.single("image"), (req, res) => {
+app.post("/upload", upload.single("image"), (req, res) => {
   console.log(req.file, req.body);
   res.send("ok");
 });
 ```
 
 - 파일을 하나만 업로드하는 경우 `single` 미들웨어를 사용한다.
-- single 미들웨어를 라우터 미들웨어 앞에 넣어두면, multer 설정에 따라 파일 업로드 후 req.file 객체가 생성된다. 인수는 input 태그의 name이나 폼 데이터의 키와 일치하게 넣으면 된다.
-- 업로드 성공 시 결과는 req.file 객체 안에 들어 있다. req.body에는 파일이 아닌 데이터인 title이 들어 있다.
+- single 미들웨어를 라우터 미들웨어 `앞에` 넣어두면, multer 설정에 따라 파일 업로드 후 req.file 객체가 생성된다. 인수는 `input` 태그의 `name`이나 `폼 데이터`의 `key`와 일치하게 넣으면 된다.
+- 업로드 성공 시 결과는 `req.file` 객체 안에 들어 있다. `req.body`에는 파일이 아닌 데이터인 `title`이 들어 있다.
 
-<br />
+```js
+<form id="form" action="/upload" method="post" enctype="multipart/form-data">
+  <input type="file" name="image" multiple />
+  <input type="text" name="title" />
+  <button type="submit">업로드</button>
+</form>
+```
 
 ```js
 app.post("upload", upload.array("many"), (req, res) => {
@@ -411,10 +432,17 @@ app.post("upload", upload.array("many"), (req, res) => {
 });
 ```
 
-- 여러 파일을 업로드 하는 경우 single대신 `array` 미들웨어로 교체한다.
-- 업로드 결과도 req.file대신 req.files 배열에 들어 있다.
+- 여러 파일을 업로드 하는 경우 HTML의 input 태그에는 `multiple` 속성을 추가한다. 또한, single대신 `array` 미들웨어로 교체한다.
+- 업로드 결과도 req.file대신 `req.files` 배열에 들어 있다.
 
-<br />
+```js
+<form id="form" action="/upload" method="post" enctype="multipart/form-data">
+  <input type="file" name="image1" />
+  <input type="file" name="image2" />
+  <input type="text" name="title" />
+  <button type="submit">업로드</button>
+</form>
+```
 
 ```js
 app.post(
@@ -428,9 +456,14 @@ app.post(
 ```
 
 - 파일을 여러 개 업로드하지만 input 태그나 폼 데이터의 키가 다른 경우에는 `fields `미들웨어를 사용한다.
-- 업로드 결과도 req.files.image1, req.files.image2에 각각 들어 있다.
+- 업로드 결과도 `req.files.image1`, `req.files.image2`에 각각 들어 있다.
 
-<br />
+```js
+<form id="form" action="/upload" method="post" enctype="multipart/form-data">
+  <input type="text" name="title" />
+  <button type="submit">업로드</button>
+</form>
+```
 
 ```js
 app.post("/upload", upload.none(), (req, res) => {
@@ -440,7 +473,7 @@ app.post("/upload", upload.none(), (req, res) => {
 ```
 
 - 특수한 경우지만 파일을 업로드하지 않고도 멀티파트 형식으로 업로드 하는 경우가 있다. 그럴 때는 `none` 미들웨어를 사용한다.
-- 파일을 업로드하지 않았으므로 req.body만 존재한다.
+- 파일을 업로드하지 않았으므로 `req.body`만 존재한다.
 
 <br />
 
