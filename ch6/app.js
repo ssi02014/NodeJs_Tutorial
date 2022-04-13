@@ -70,9 +70,9 @@ app.post(
 app.use("/", indexRouter);
 app.use("/user", userRouter);
 
-app.use((req, res, next) => {
-  res.status(404).send("Not Found");
-});
+// app.use((req, res, next) => {
+//   res.status(404).send("Not Found");
+// });
 
 // 에러 처리 미들웨어
 app.use((err, req, res, next) => {
